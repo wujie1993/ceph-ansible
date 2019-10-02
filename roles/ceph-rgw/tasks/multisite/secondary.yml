@@ -1,4 +1,9 @@
 ---
+- name: ensure connection to primary cluster
+  uri:
+    url: "{{ rgw_pull_proto }}://{{ rgw_pullhost }}:{{ rgw_pull_port }}"
+  delegate_to: "{{ groups[mon_group_name][0] }}"
+
 - name: fetch the realm(s)
   command: "{{ container_exec_cmd }} radosgw-admin realm pull --cluster={{ cluster }} --rgw-realm={{ item.realm }} --url={{ item.endpoint }} --access-key={{ item.access_key }} --secret={{ item.secret_key }}"
   delegate_to: "{{ groups[mon_group_name][0] }}"
@@ -6,12 +11,8 @@
   with_items: "{{ secondary_realms }}"
   when: secondary_realms is defined
 
-- name: get the period(s)
-  command: "{{ container_exec_cmd }} radosgw-admin period get --cluster={{ cluster }} --rgw-realm={{ item.realm }}"
-  delegate_to: "{{ groups[mon_group_name][0] }}"
-  run_once: true
-  with_items: "{{ secondary_realms }}"
-  when: secondary_realms is defined
+- name: include_tasks secondary_connection_checks.yml
+  include_tasks: secondary_connection_checks.yml
 
 - name: create the default zone
   command: "{{ container_exec_cmd }} radosgw-admin zone create --cluster={{ cluster }} --rgw-realm={{ item.realm }} --rgw-zonegroup={{ item.zonegroup }} --rgw-zone={{ item.zone }} --access-key={{ item.access_key }} --secret={{ item.secret_key }} --default"

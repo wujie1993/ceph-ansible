@@ -8,18 +8,12 @@
 
 - name: create list realm_system_users
   set_fact:
-    realm_system_users: "{{ realm_system_users | default([]) + [{ 'realm': hostvars[item]['rgw_realm'], 'zonegroup': hostvars[item]['rgw_zonegroup'], 'zone': hostvars[item]['rgw_zone'], 'access_key': hostvars[item]['system_access_key'], 'secret_key': hostvars[item]['system_secret_key'], 'user': hostvars[item]['rgw_realm_system_user'], 'display_name': hostvars[item]['rgw_realm_system_user_display_name'] }] }}"
+    realm_system_users: "{{ realm_system_users | default([]) + [{ 'realm': hostvars[item]['rgw_realm'], 'zonegroup': hostvars[item]['rgw_zonegroup'], 'zone': hostvars[item]['rgw_zone'], 'access_key': hostvars[item]['system_access_key'], 'secret_key': hostvars[item]['system_secret_key'], 'user': hostvars[item]['rgw_realm_system_user'], 'display_name': hostvars[item]['rgw_realm_system_user_display_name'] }] | unique }}"
   with_items: "{{ groups.get(rgw_group_name, []) }}"
   run_once: true
   when: 
     - hostvars[item]['rgw_zonemaster'] | bool
     - "'could not fetch user info: no user info saved' in hostvars[item]['usercheck'].stderr"
-
-- name: make all items in realm_system_users unique
-  set_fact:
-    realm_system_users: "{{ realm_system_users | unique }}"
-  run_once: true
-  when: realm_system_users is defined
 
 - name: create the realm system user(s)
   command: "{{ container_exec_cmd }} radosgw-admin user create --rgw-realm={{ item.realm }} --rgw-zonegroup={{ item.zonegroup }} --rgw-zone={{ item.zone }} --uid={{ item.user }} --display-name={{ item.display_name }} --access-key={{ item.access_key }} --secret={{ item.secret_key }} --system"

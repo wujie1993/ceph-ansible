@@ -1,0 +1,51 @@
+- name: get the period(s)
+  command: "{{ container_exec_cmd }} radosgw-admin period get --cluster={{ cluster }} --rgw-realm={{ rgw_realm }}"
+  delegate_to: "{{ groups[mon_group_name][0] }}"
+  register: period_get
+  when: secondary_realms is defined
+
+- name: get zonegroups list from period_get
+  set_fact:
+    zonegroups: "{{ (period_get.stdout | from_json)['period_map']['zonegroups'] }}"
+
+- name: get zones from zonegroups list
+  set_fact:
+    zonegroups_endpoints: "{{ zonegroups_endpoints | default([]) }} + {{ item.value.endpoints }}"
+  with_dict: "{{ zonegroups }}"
+
+- name: get zones from zonegroups list
+  set_fact:
+    zones: "{{ zones | default([]) }} + {{ item.zones }}"
+  with_items: "{{ zonegroups }}"
+  when: item.name == "{{ rgw_zonegroup }}"
+
+- name: get endpoints from zones list
+  set_fact:
+    zone_endpoints: "{{ zone_endpoints | default([]) }} + {{ item.endpoints }}"
+  with_items: "{{ zones }}"
+  when: item.name != "{{ rgw_zone }}"
+
+- name: ensure connection to zonegroups endpoints from rgws
+  uri:
+    url: "{{ item }}"
+  with_items: "{{ zonegroups_endpoints }}"
+
+- name: ensure connection to zonegroups endpoints from mon.0
+  uri:
+    url: "{{ item }}"
+  delegate_to: "{{ groups[mon_group_name][0] }}"
+  run_once: true
+  with_items: "{{ zonegroups_endpoints }}"
+
+- name: ensure connection to zones endpoints from rgws
+  uri:
+    url: "{{ item }}"
+  with_items: "{{ zone_endpoints }}"
+
+- name: ensure connection to zonegs endpoints from mon.0
+  uri:
+    url: "{{ item }}"
+  delegate_to: "{{ groups[mon_group_name][0] }}"
+  run_once: true
+  with_items: "{{ zone_endpoints }}"
+
