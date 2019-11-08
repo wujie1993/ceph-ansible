@@ -108,5 +108,6 @@
   include_tasks: openstack_config.yml
   when:
     - not add_osd | bool
+    - not rolling_update | default(False) | bool
     - openstack_config | bool
     - inventory_hostname == groups[osd_group_name] | last
